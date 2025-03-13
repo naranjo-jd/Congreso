@@ -1,0 +1,63 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath, amssymb}
+
+\title{Congreso}
+\author{ }
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Grafos}
+
+Un grafo es una tupla $G = (V, E)$, donde $V$ es un conjunto no vacío de elementos llamados vértices (o nodos) y $E$ es un conjunto de pares de vértices, llamados aristas.\\
+
+Un grafo $G = (V, E)$ es dirigido si $E \subseteq V \times V$
+
+Un grafo ponderado es una tripleta $G = (V, E, \omega)$, donde $\omega$ es una función $\omega: E \rightarrow \mathbb{R}$.
+
+Sea $G$ un grafo, donde $G(V) = \lbrace v_1, ..., v_n \rbrace$. La matriz de adyacencia de $G$ es una matriz cuadrada $A = [a_{ij}]$ de $n \times n$ definida por
+
+\[
+a_{ij} =
+\begin{cases} 
+\ 1, & \text{si } \lbrace v_i , v_j\rbrace \in E \\
+\ 0, & \text{en caso contrario}
+\end{cases}
+\]
+
+Si $G$ es un grafo ponderado, su matriz de adyacencia ponderada está dada por
+
+\[
+a_{ij} =
+\begin{cases} 
+\ \omega( v_i , v_j), & \text{si } (v_i , v_j) \in E \\
+\ 0, & \text{en caso contrario}
+\end{cases}
+\]
+
+\section{Energía}
+
+Sea $G = (V, E)$ un grafo con matriz de adyacencia $A(G)$. Decimos que el polinomio característico de $G$ es el polinomio caracteristico de su matriz de adyacencia $A(G)$ dado por $\text{det}(xI_n-A(G))$, donde $I_n$ es la matriz identidad de orden $n$. Denotamos al polinomio caracteristico de $G$ con $\phi(G, x)$. Los autovalores del grafo $G$ son los autovalores de su matriz de adyacencia $A(G)$. Dado que $A(G)$ es una matriz simetrica, sus autovalores son reales. Llamamos espectro de $G$ al conjunto de autovalores del grafo y lo denotamos por $\text{Spec}(G)$. 
+
+$$\text{Spec}(G) = \lbrace \lambda \in \mathbb{R} : \phi(G, \lambda) = 0 \rbrace$$
+
+Sea $G$ un grafo con $n$ vertices. Definimos la energia de $G$ como
+
+$$\mathcal{E} = \mathcal{E}(G) = \sum_{\lambda \in \text{Spec(G)}} |\lambda|$$
+
+El grado de un vértice es el número de vértices conectados a él y lo denotamos $\text{deg}(v)$. Dado un grafo $G$ con $V(G) = \lbrace v_1, ... , v_n \rbrace$ definimos $\Delta(G)$ como la matriz diagonal con entradas
+
+$$\delta_{ii} = \text{deg}(v_i)$$
+
+La Matriz Laplaciana de $G$, denotada $L(G)$, está definida como
+
+$$L(G) = \Delta(G) - A(G)$$
+
+Sea $G$ un grafo con $|V(G)| = n$, $|E(G)| = m$ y $S = \text{Spec}(L(G) - \frac{2m}{n}I_n)$. La energía Laplaciana de $G$, denotada $\mathcal{E}_L$, está dada por
+
+$$\mathcal{E}_L = \sum_{\lambda \in S} |\lambda|$$
+
+\end{document}
