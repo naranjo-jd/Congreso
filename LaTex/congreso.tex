@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage{graphicx}
 \usepackage{amsmath, amssymb}
+\usepackage[utf8]{inputenc}
 
 \title{Congreso}
 \author{ }
@@ -59,5 +60,22 @@ $$L(G) = \Delta(G) - A(G)$$
 Sea $G$ un grafo con $|V(G)| = n$, $|E(G)| = m$ y $S = \text{Spec}(L(G) - \frac{2m}{n}I_n)$. La energía Laplaciana de $G$, denotada $\mathcal{E}_L$, está dada por
 
 $$\mathcal{E}_L = \sum_{\lambda \in S} |\lambda|$$
+
+Una \textbf{red neuronal} es un modelo computacional inspirado en el cerebro humano, utilizado en aprendizaje automático e inteligencia artificial para reconocer patrones y tomar decisiones. Consiste en capas de unidades interconectadas llamadas \textbf{neuronas}, que procesan datos de entrada y transmiten información a través de conexiones ponderadas.
+
+\section*{Relación con la Teoría de Grafos}
+
+Una red neuronal puede verse como un \textbf{grafo dirigido}, donde:
+\begin{itemize}
+    \item \textbf{Nodos (vértices)} representan las neuronas.
+    \item \textbf{Aristas dirigidas} representan las conexiones ponderadas entre neuronas.
+\end{itemize}
+
+La estructura de una red neuronal se relaciona con la teoría de grafos en varios aspectos:
+\begin{enumerate}
+    \item \textbf{Redes Feedforward}: Forman un \textbf{grafo dirigido acíclico (DAG)} donde la información fluye en una sola dirección, desde la entrada hasta la salida, sin ciclos.
+    \item \textbf{Redes Neuronales Recurrentes (RNNs)}: Introducen ciclos, haciendo que el grafo sea \textbf{cíclico}, lo que permite la memoria y dependencias temporales en los datos.
+    \item \textbf{Redes Neuronales de Grafos (GNNs)}: Utilizan estructuras de \textbf{grafos} como entrada, aprendiendo patrones sobre los nodos y aristas, lo que es útil para redes sociales, estructuras moleculares, entre otros.
+\end{enumerate}
 
 \end{document}
