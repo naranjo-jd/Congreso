@@ -36,9 +36,11 @@ def plot_loss_vs_energy(loss, energy):
 
 #  Function to train a linear regresion for the loss vs energy
 def linear_regression(loss, energy):
-    slope, intercept, r_value, _, _ = stats.linregress(loss, energy)
-    plt.scatter(loss, energy, color='blue', label='Datos')
-    plt.plot(loss, slope * loss + intercept, color='red', label='Regresión lineal')
+    loss_array = np.array(loss)
+    energy_array = np.array(energy)
+    slope, intercept, r_value, _, _ = stats.linregress(loss_array, energy_array)
+    plt.scatter(loss_array, energy_array, color='blue', label='Datos')
+    plt.plot(loss_array, slope * loss_array + intercept, color='red', label='Regresión lineal')
     plt.title(f'Regresión Lineal - Pérdida vs Energía (R² = {r_value**2:.4f})')
     plt.xlabel('Función de pérdida')
     plt.ylabel('Energía del grafo')
@@ -49,10 +51,12 @@ def linear_regression(loss, energy):
 
 # Function to train a polynomial regresion for the loss vs energy
 def polynomial_regression(loss, energy, degree=2):
-    p = Polynomial.fit(loss, energy, degree)
-    loss_fit = np.linspace(min(loss), max(loss), 500)
+    loss_array = np.array(loss)
+    energy_array = np.array(energy)
+    p = Polynomial.fit(loss_array, energy_array, degree)
+    loss_fit = np.linspace(loss_array.min(), loss_array.max(), 500)
     energy_fit = p(loss_fit)
-    plt.scatter(loss, energy, color='blue', label='Datos')
+    plt.scatter(loss_array, energy_array, color='blue', label='Datos')
     plt.plot(loss_fit, energy_fit, color='green', label=f'Regresión Polinómica (grado {degree})')
     plt.title(f'Regresión Polinómica - Pérdida vs Energía (grado {degree})')
     plt.xlabel('Función de pérdida')
@@ -64,7 +68,9 @@ def polynomial_regression(loss, energy, degree=2):
 
 # Function to calculate the correlation between loss and energy
 def correlation_analysis(loss, energy):
-    corr_coefficient = np.corrcoef(loss, energy)[0, 1]
+    loss_array = np.array(loss)
+    energy_array = np.array(energy)
+    corr_coefficient = np.corrcoef(loss_array, energy_array)[0, 1]
     print(f"Coeficiente de correlación de Pearson entre Pérdida y Energía: {corr_coefficient:.4f}")
 
 
@@ -130,8 +136,14 @@ def red_a_matriz_laplaciana(modelo):
 # ---------------------------------------------------------------------------------
 
 # Función para calcular la energía de una red neuronal a partir de su matriz de adyacencia (Estandar)
-def calcular_energia_estandar(modelo):
+def calcular_energia_estandar_ady(modelo):
     A = red_a_matriz_adyacencia(modelo)
+    eigenvalues = np.linalg.eigvals(A)
+    return np.sum(np.abs(eigenvalues))
+
+# Función para calcular la energía de una red neuronal a partir de su matriz bipartita (Estandar)
+def calcular_energia_estandar_bip(modelo):
+    A = red_a_matriz_bipartita(modelo)
     eigenvalues = np.linalg.eigvals(A)
     return np.sum(np.abs(eigenvalues))
 
@@ -184,25 +196,71 @@ class SimpleNN(nn.Module):
 
 model = SimpleNN().to(device)
 
+#%% Entrenamiento de la red neuronal y cálculo de las energías
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+criterion = nn.CrossEntropyLoss()
 
-#%% Funciones para calcular las energías de las redes basada en los pesos de las capas
-def calcular_energia(modelo):
-    energia_total = 0
-    # Recorremos cada capa lineal
-    for layer in [modelo.fc1, modelo.fc2, modelo.fc3]:
-        # Extraer los pesos y convertir a numpy
-        W = layer.weight.detach().cpu().numpy()  # W de forma (n_in, n_out)
-        # Construir la matriz bipartita A_bi:
-        n_in, n_out = W.shape
-        A_top = np.hstack([np.zeros((n_in, n_in)), np.abs(W)])
-        A_bottom = np.hstack([np.abs(W).T, np.zeros((n_out, n_out))])
-        A_bi = np.vstack([A_top, A_bottom])
-        
-        # Calcular la matriz de grados y el Laplaciano L = D - A_bi
-        D = np.diag(np.sum(A_bi, axis=1))
-        L = D - A_bi
-        
-        # Calcular los autovalores y sumar sus valores absolutos
-        eigenvalues = np.linalg.eigvals(L)
-        energia_total += np.sum(np.abs(eigenvalues))
-    return energia_total
+loss_history = []
+lr_history = []
+energy_ady_history = []
+energy_bip_history = []
+energy_lapl_history = []
+
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+    
+    # Calcular las energías usando las funciones proporcionadas
+    energia_ady = calcular_energia_estandar_ady(model)
+    energia_bip = calcular_energia_estandar_bip(model)
+    energia_lapl = calcular_energia_laplaciana(model)
+    
+    energy_ady_history.append(energia_ady)
+    energy_bip_history.append(energia_bip)
+    energy_lapl_history.append(energia_lapl)
+    
+    lr_history.append(scheduler.get_last_lr()[0])
+    loss_history.append(total_loss / len(train_loader))
+    
+    print(f"Época {epoch+1}/{epochs}, Pérdida: {loss_history[-1]:.4f}, "
+          f"Energía Ady: {energia_ady:.2f}, Energía Bip: {energia_bip:.2f}, "
+          f"Energía Lapl: {energia_lapl:.2f}, LR: {lr_history[-1]:.6f}")
+    
+    scheduler.step()
+
+
+#%% Análisis y Visualización: Pérdida vs Energías
+
+# Para la energía de la matriz de adyacencia (Estándar)
+print("Análisis para Energía (Matriz de Adyacencia Estándar)")
+plot_loss_vs_energy(loss_history, energy_ady_history)
+linear_regression(loss_history, energy_ady_history)
+polynomial_regression(loss_history, energy_ady_history, degree=2)
+correlation_analysis(loss_history, energy_ady_history)
+
+# Para la energía de la matriz bipartita
+print("Análisis para Energía (Matriz Bipartita)")
+plot_loss_vs_energy(loss_history, energy_bip_history)
+linear_regression(loss_history, energy_bip_history)
+polynomial_regression(loss_history, energy_bip_history, degree=2)
+correlation_analysis(loss_history, energy_bip_history)
+
+# Para la energía de la matriz laplaciana
+print("Análisis para Energía (Matriz Laplaciana)")
+plot_loss_vs_energy(loss_history, energy_lapl_history)
+linear_regression(loss_history, energy_lapl_history)
+polynomial_regression(loss_history, energy_lapl_history, degree=2)
+correlation_analysis(loss_history, energy_lapl_history)
+
+
+
+# %%
