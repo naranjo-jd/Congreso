@@ -22,7 +22,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 
-#%% Auxiliar functions
+# %% Auxiliar functions for Numeric Analysis
 
 # Function to plot the loss vs energy
 def plot_loss_vs_energy(loss, energy):
@@ -68,7 +68,81 @@ def correlation_analysis(loss, energy):
     print(f"Coeficiente de correlación de Pearson entre Pérdida y Energía: {corr_coefficient:.4f}")
 
 
-# %% Configuración e Hiperparámetros
+# %% Auxiliar functions for Neural Network
+
+# -------------------------------------------------------------------
+# Diferentes formas de calcular matrices asociadas a redes neuronales
+# -------------------------------------------------------------------
+
+# Función para calcular la matriz de adyacencia de una red neuronal
+def red_a_matriz_adyacencia(modelo):
+    capas = [layer for layer in modelo.children() if isinstance(layer, nn.Linear)]
+
+    total_neuronas = sum(layer.weight.shape[1] for layer in capas) + capas[-1].weight.shape[0]
+    A = np.zeros((total_neuronas, total_neuronas))
+
+    idx_inicial = 0
+    idx_final = capas[0].weight.shape[1]  
+
+    for layer in capas:
+        n_out, n_in = layer.weight.shape  
+        W = np.abs(layer.weight.detach().cpu().numpy())
+
+        A[idx_inicial : idx_final, idx_final : idx_final + n_out] = W.T
+
+        idx_inicial = idx_final
+        idx_final += n_out
+
+    return A
+
+# Función para calcular la matriz de bipartita de una red neuronal, tomando cada capa como un conjunto de nodos
+def red_a_matriz_bipartita(modelo):
+    capas = [layer for layer in modelo.children() if isinstance(layer, torch.nn.Linear)]
+
+    # Determinar el tamaño total de la matriz
+    n_total = sum(layer.weight.shape[1] + layer.weight.shape[0] for layer in capas)
+    
+    # Crear matriz global vacía
+    A_global = np.zeros((n_total, n_total))
+    
+    idx = 0
+    for layer in capas:
+        W = layer.weight.detach().cpu().numpy()
+        n_in, n_out = W.shape
+
+        # Colocar la matriz bipartita en la posición adecuada
+        A_global[idx : idx + n_in, idx + n_in : idx + n_in + n_out] = np.abs(W)
+        A_global[idx + n_in : idx + n_in + n_out, idx : idx + n_in] = np.abs(W.T)
+        
+        idx += n_in
+
+    return A_global
+
+# Función para calcular la matriz Laplaciana de una red neuronal 
+def red_a_matriz_laplaciana(modelo):
+    A = red_a_matriz_adyacencia(modelo)  # Reutiliza la función de adyacencia
+    D = np.diag(A.sum(axis=1))          # Matriz diagonal de grados
+    L = D - A                           # L = D - A
+    return L
+
+# ---------------------------------------------------------------------------------
+# Diferentes formas de calcular energías de los grafos asociados a redes neuronales
+# ---------------------------------------------------------------------------------
+
+# Función para calcular la energía de una red neuronal a partir de su matriz de adyacencia (Estandar)
+def calcular_energia_estandar(modelo):
+    A = red_a_matriz_adyacencia(modelo)
+    eigenvalues = np.linalg.eigvals(A)
+    return np.sum(np.abs(eigenvalues))
+
+# Función para calcular la energía de una red neuronal a partir de su matriz de Laplaciana
+def calcular_energia_laplaciana(modelo):
+    L = red_a_matriz_laplaciana(modelo)
+    eigenvalues = np.linalg.eigvals(L)
+    return np.sum(np.abs(eigenvalues))
+
+
+# %% Configuración e Hiperparámetros para Pytorch
 
 # Selecciona "cuda" (GPU) si está disponible, de lo contrario usa "cpu" (CPU)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,37 +165,44 @@ train_dataset = datasets.MNIST(root="./data", train=True, download=True, transfo
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 
-#%% Definir la red neuronal
-class SimpleNN(nn.Module):  # Hereda de nn.Module, la clase base para todas las redes en PyTorch
+#%% Definir la red neuronal de 3 capas para el experimento (SimpleNN)
+class SimpleNN(nn.Module): 
     def __init__(self):
-        super(SimpleNN, self).__init__()  # Llama al constructor de la clase padre (nn.Module)
-        
-        # -> Entrada: 28*28 = 784 (porque las imágenes son de 28x28 píxeles)                                     
-        # -> Salida: 128 neuronas
+        super(SimpleNN, self).__init__()
         self.fc1 = nn.Linear(28*28, 128)
-
-        # -> Entrada: 128 (salida de la capa anterior)
-        # -> Salida: 64 neuronas
-        self.fc2 = nn.Linear(128, 64)     
-
-        # -> Entrada: 64 (salida de la capa anterior)
-        # Salida: 10 neuronas (una por cada clase/dígito del 0 al 9)
-        self.fc3 = nn.Linear(64, 10)                  
-
-        self.relu = nn.ReLU()             # Función de activación ReLU (Rectified Linear Unit)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
-        # Aplanar la imagen de 28x28 a un vector de 784 elementos
-        # x.size(0) es el tamaño del lote (batch size), y -1 indica que se calcule automáticamente el tamaño
-        x = x.view(x.size(0), -1)  # Transforma la imagen de (batch_size, 1, 28, 28) a (batch_size, 784)
+        # Aplanar la imagen de 28x28 a vector de 784 elementos
+        x = x.view(x.size(0), -1)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
-        # Pasar los datos a través de las capas de la red
-        x = self.relu(self.fc1(x))  # Capa 1 + ReLU
-        x = self.relu(self.fc2(x))  # Capa 2 + ReLU
-        x = self.fc3(x)             # Capa 3 (sin activación, ya que se usará para la salida)
-
-        return x  # Devuelve la salida de la red (logits)
-
-# Crear una instancia del modelo y moverlo al dispositivo (GPU o CPU)
 model = SimpleNN().to(device)
 
+
+#%% Funciones para calcular las energías de las redes basada en los pesos de las capas
+def calcular_energia(modelo):
+    energia_total = 0
+    # Recorremos cada capa lineal
+    for layer in [modelo.fc1, modelo.fc2, modelo.fc3]:
+        # Extraer los pesos y convertir a numpy
+        W = layer.weight.detach().cpu().numpy()  # W de forma (n_in, n_out)
+        # Construir la matriz bipartita A_bi:
+        n_in, n_out = W.shape
+        A_top = np.hstack([np.zeros((n_in, n_in)), np.abs(W)])
+        A_bottom = np.hstack([np.abs(W).T, np.zeros((n_out, n_out))])
+        A_bi = np.vstack([A_top, A_bottom])
+        
+        # Calcular la matriz de grados y el Laplaciano L = D - A_bi
+        D = np.diag(np.sum(A_bi, axis=1))
+        L = D - A_bi
+        
+        # Calcular los autovalores y sumar sus valores absolutos
+        eigenvalues = np.linalg.eigvals(L)
+        energia_total += np.sum(np.abs(eigenvalues))
+    return energia_total
