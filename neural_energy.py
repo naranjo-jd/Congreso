@@ -31,13 +31,13 @@ def normalize(data):
     return (data_array - np.min(data_array)) / (np.max(data_array) - np.min(data_array))
 
 # Función para graficar la energía vs la pérdida del grafo con gradiente
-def plot_loss_vs_energy(loss, energy, log_scale=False):
+def plot_loss_vs_energy(loss, energy, network_name, log_scale=False):
     loss_array = normalize(loss)
     energy_array = normalize(energy)
     colors = plt.cm.Blues(np.linspace(0.3, 1, len(energy_array)))
     plt.scatter(energy_array, loss_array, color=colors, label='Datos')
     plt.plot(energy_array, loss_array, color='blue', alpha=0.5, label='Curva de tendencia')
-    plt.title('Gráfico de Energía vs Pérdida del grafo')
+    plt.title(f'{network_name} - Gráfico de Energía vs Pérdida del grafo')
     plt.xlabel('Energía del grafo (normalizada)')
     plt.ylabel('Función de pérdida (normalizada)')
     if log_scale:
@@ -46,72 +46,67 @@ def plot_loss_vs_energy(loss, energy, log_scale=False):
     plt.grid(True)
     plt.show()
 
-# Función para calcular el error cuadrático medio (MSE)
-def mean_squared_error(y_true, y_pred):
-    return np.mean((y_true - y_pred) ** 2)
-
 # Función para entrenar una regresión lineal para la energía vs pérdida
-def linear_regression(loss, energy):
+def linear_regression(loss, energy, network_name):
     loss_array = normalize(loss)
     energy_array = normalize(energy)
     slope, intercept, r_value, _, _ = stats.linregress(energy_array, loss_array)
     predicted_loss = slope * energy_array + intercept
-    mse = mean_squared_error(loss_array, predicted_loss)
     plt.scatter(energy_array, loss_array, color='blue', label='Datos')
     plt.plot(energy_array, predicted_loss, color='red', label='Regresión lineal')
-    plt.title(f'Regresión Lineal - Energía vs Pérdida (R² = {r_value**2:.4f})')
+    plt.title(f'{network_name} - Regresión Lineal (R² = {r_value**2:.4f})')
     plt.xlabel('Energía del grafo (normalizada)')
     plt.ylabel('Función de pérdida (normalizada)')
     plt.legend()
     plt.grid(True)
     plt.show()
-    print(f"Coeficiente de correlación (r): {r_value:.4f}")
-    print(f"Error cuadrático medio (MSE): {mse:.4f}")
 
 # Función para entrenar una regresión polinómica para la energía vs pérdida
-def polynomial_regression(loss, energy, degree=2):
+def polynomial_regression(loss, energy, network_name, degree=2):
     loss_array = normalize(loss)
     energy_array = normalize(energy)
     p = Polynomial.fit(energy_array, loss_array, degree)
     predicted_loss = p(energy_array)
-    mse = mean_squared_error(loss_array, predicted_loss)
+    ss_total = np.sum((loss_array - np.mean(loss_array)) ** 2)
+    ss_residual = np.sum((loss_array - predicted_loss) ** 2)
+    r_squared = 1 - (ss_residual / ss_total)
+
     energy_fit = np.linspace(energy_array.min(), energy_array.max(), 500)
     loss_fit = p(energy_fit)
     plt.scatter(energy_array, loss_array, color='blue', label='Datos')
     plt.plot(energy_fit, loss_fit, color='green', label=f'Regresión Polinómica (grado {degree})')
-    plt.title(f'Regresión Polinómica - Energía vs Pérdida (grado {degree})')
+    plt.title(f'{network_name} - Regresión Polinómica (grado {degree}, R² = {r_squared:.4f})')
     plt.xlabel('Energía del grafo (normalizada)')
     plt.ylabel('Función de pérdida (normalizada)')
     plt.legend()
     plt.grid(True)
     plt.show()
-    print(f"Coeficientes del polinomio: {p.convert().coef}")
-    print(f"Error cuadrático medio (MSE): {mse:.4f}")
 
 # Función exponencial para el ajuste
 def exponential_func(x, a, b, c):
     return a * np.exp(b * x) + c
 
 # Función para entrenar una regresión exponencial para la energía vs pérdida
-def exponential_regression(loss, energy):
+def exponential_regression(loss, energy, network_name):
     loss_array = normalize(loss)
     energy_array = normalize(energy)
     popt, _ = curve_fit(exponential_func, energy_array, loss_array, maxfev=5000)
     a, b, c = popt
     predicted_loss = exponential_func(energy_array, a, b, c)
-    mse = mean_squared_error(loss_array, predicted_loss)
+    ss_total = np.sum((loss_array - np.mean(loss_array)) ** 2)
+    ss_residual = np.sum((loss_array - predicted_loss) ** 2)
+    r_squared = 1 - (ss_residual / ss_total)
+
     plt.scatter(energy_array, loss_array, color='blue', label='Datos')
     energy_fit = np.linspace(energy_array.min(), energy_array.max(), 500)
     loss_fit = exponential_func(energy_fit, a, b, c)
-    plt.plot(energy_fit, loss_fit, color='green', label='Ajuste exponencial')
-    plt.title('Regresión Exponencial - Energía vs Pérdida')
+    plt.plot(energy_fit, loss_fit, color='green', label=f'Ajuste exponencial (R² = {r_squared:.4f})')
+    plt.title(f'{network_name} - Regresión Exponencial')
     plt.xlabel('Energía del grafo (normalizada)')
     plt.ylabel('Función de pérdida (normalizada)')
     plt.legend()
     plt.grid(True)
     plt.show()
-    print(f"Parámetros del ajuste exponencial: a = {a:.4f}, b = {b:.4f}, c = {c:.4f}")
-    print(f"Error cuadrático medio (MSE): {mse:.4f}")
 
 # Función para calcular la correlación entre energía y pérdida
 def correlation_analysis(loss, energy):
@@ -329,40 +324,43 @@ loss_history2, energy_bip2, energy_lapl2 = entrenar_red(model2, optimizer2, sche
 
 # %% Red Simple
 # Gráficos de comparación
-plot_loss_vs_energy(loss_history1, energy_bip1)
-plot_loss_vs_energy(loss_history1, energy_lapl1)
+plot_loss_vs_energy(loss_history1, energy_bip1, 'Red Simple - Bipartita')
+plot_loss_vs_energy(loss_history1, energy_lapl1, 'Red Simple - Laplaciana')
 
 # Regresiones y correlación para la Red Simple
 print("=== Red Simple - Bipartita ===")
-linear_regression(loss_history1, energy_bip1)
-polynomial_regression(loss_history1, energy_bip1)
-exponential_regression(loss_history1, energy_bip1)
+linear_regression(loss_history1, energy_bip1, 'Red Simple - Bipartita')
+polynomial_regression(loss_history1, energy_bip1, 'Red Simple - Bipartita', degree=2)
+polynomial_regression(loss_history1, energy_bip1, 'Red Simple - Bipartita', degree=3)
+exponential_regression(loss_history1, energy_bip1, 'Red Simple - Bipartita')
 correlation_analysis(loss_history1, energy_bip1)
 
 print("\n=== Red Simple - Laplaciana ===")
-linear_regression(loss_history1, energy_lapl1)
-polynomial_regression(loss_history1, energy_lapl1)
-exponential_regression(loss_history1, energy_lapl1)
+linear_regression(loss_history1, energy_lapl1, 'Red Simple - Laplaciana')
+polynomial_regression(loss_history1, energy_lapl1, 'Red Simple - Laplaciana', degree=2)
+polynomial_regression(loss_history1, energy_lapl1, 'Red Simple - Laplaciana', degree=3)
+exponential_regression(loss_history1, energy_lapl1, 'Red Simple - Laplaciana')
 correlation_analysis(loss_history1, energy_lapl1)
 
 
 # %% Red Avanzada
 # Gráficos de comparación
-plot_loss_vs_energy(loss_history2, energy_bip2)
-plot_loss_vs_energy(loss_history2, energy_lapl2)
+plot_loss_vs_energy(loss_history2, energy_bip2, 'Red Avanzada - Bipartita')
+plot_loss_vs_energy(loss_history2, energy_lapl2, 'Red Avanzada - Laplaciana')
 
 # Regresiones y correlación para la Red Avanzada
 print("\n=== Red Avanzada - Bipartita ===")
-linear_regression(loss_history2, energy_bip2)
-polynomial_regression(loss_history2, energy_bip2, degree=2)
-polynomial_regression(loss_history2, energy_bip2, degree=3)
-exponential_regression(loss_history2, energy_bip2)
+linear_regression(loss_history2, energy_bip2, 'Red Avanzada - Bipartita')
+polynomial_regression(loss_history2, energy_bip2, 'Red Avanzada - Bipart', degree=2)
+polynomial_regression(loss_history2, energy_bip2, 'Red Avanzada - Bipart', degree=3)
+polynomial_regression(loss_history2, energy_bip2, 'Red Avanzada - Bipart')
+exponential_regression(loss_history2, energy_bip2, 'Red Avanzada - Bipart')
 correlation_analysis(loss_history2, energy_bip2)
 
 print("\n=== Red Avanzada - Laplaciana ===")
-linear_regression(loss_history2, energy_lapl2)
-polynomial_regression(loss_history2, energy_lapl2, degree=2)
-polynomial_regression(loss_history2, energy_lapl2, degree=3)
-exponential_regression(loss_history2, energy_lapl2)
+linear_regression(loss_history2, energy_lapl2, 'Red Avanzada - Laplaciana')
+polynomial_regression(loss_history2, energy_lapl2, 'Red Avanzada - Laplaciana',degree=2)
+polynomial_regression(loss_history2, energy_lapl2, 'Red Avanzada - Laplaciana', degree=3)
+exponential_regression(loss_history2, energy_lapl2, 'Red Avanzada - Laplaciana')
 correlation_analysis(loss_history2, energy_lapl2)
 # %%
