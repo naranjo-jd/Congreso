@@ -11,20 +11,38 @@
 
 \maketitle
 
+\section{Introducción}
+
+En este trabajo se investiga la relación entre la \textbf{energía del grafo asociado a una red neuronal} y la \textbf{función de pérdida} durante el proceso de entrenamiento. La energía del grafo es una medida basada en los valores propios de ciertas matrices asociadas a la red neuronal, y su relación con la optimización del modelo es un tema de creciente interés en la comunidad científica.\\
+\\
+El estudio se realiza utilizando la base de datos \textbf{MNIST}, un conjunto de imágenes de dígitos escritos a mano ampliamente utilizado en el entrenamiento y evaluación de modelos de reconocimiento de patrones. La red neuronal utilizada es una \textbf{red densa totalmente conectada} con tres capas ocultas y funciones de activación ReLU.\\
+\\
+Para analizar la relación entre la pérdida y la energía del grafo, se implementa la siguiente metodología:
+
+\begin{itemize}
+    \item Se define la \textbf{energía del grafo} a partir de diferentes matrices asociadas a la red neuronal: la matriz de adyacencia, la matriz bipartita y la matriz laplaciana.
+    \item Se entrena la red neuronal en la base de datos MNIST, registrando la evolución de la función de pérdida y la energía de las matrices en cada época.
+    \item Se realiza un análisis estadístico mediante \textbf{regresión lineal}, \textbf{regresión polinómica} y \textbf{cálculo del coeficiente de correlación de Pearson} para determinar si existe una relación significativa entre ambas magnitudes.
+\end{itemize}
+
+El objetivo principal de este estudio es evaluar si la energía del grafo puede servir como una métrica alternativa o complementaria para entender el comportamiento del entrenamiento de redes neuronales, proporcionando una nueva perspectiva sobre la dinámica de aprendizaje de estos modelos.
+
+\section{MNIST}
+
+La base de datos MNIST (Modified National Institute of Standards and Technology) es un conjunto de datos ampliamente utilizado en aprendizaje automático y visión por computadora. Consiste en 70,000 imágenes en escala de grises de dígitos escritos a mano (del 0 al 9), cada una con un tamaño de 28×28 píxeles. El conjunto de datos está dividido en 60,000 imágenes de entrenamiento y 10,000 de prueba.  
+
 \section{Grafos}
 
 Un grafo es una tupla $G = (V, E)$, donde $V$ es un conjunto no vacío de elementos llamados vértices (o nodos) y $E$ es un conjunto de pares de vértices, llamados aristas.\\
-
-Un grafo $G = (V, E)$ es dirigido si $E \subseteq V \times V$
-
-Un grafo ponderado es una tripleta $G = (V, E, \omega)$, donde $\omega$ es una función $\omega: E \rightarrow \mathbb{R}$.
-
-Sea $G$ un grafo, donde $G(V) = \lbrace v_1, ..., v_n \rbrace$. La matriz de adyacencia de $G$ es una matriz cuadrada $A = [a_{ij}]$ de $n \times n$ definida por
+\\
+Un grafo ponderado dirigido es una tripleta $G = (V, E, \omega)$, donde $\omega$ es una función $\omega: E \rightarrow \mathbb{R}$ y $E \subset V \times V$.\\
+\\
+Sea $G$ un grafo, donde $V(G) = \lbrace v_1, ..., v_n \rbrace$. La matriz de adyacencia de $G$ es una matriz cuadrada $A(G) = [a_{ij}]$ de $n \times n$ definida por
 
 \[
 a_{ij} =
 \begin{cases} 
-\ 1, & \text{si } \lbrace v_i , v_j\rbrace \in E \\
+\ 1, & \text{si } ( v_i , v_j) \in E \\
 \ 0, & \text{en caso contrario}
 \end{cases}
 \]
@@ -39,6 +57,59 @@ a_{ij} =
 \end{cases}
 \]
 
+\section{Estructura de la Red Neuronal}
+
+La red neuronal implementada en el código es un \textbf{Perceptrón Multicapa (MLP, Multi-Layer Perceptron)} con \textbf{neuronas completamente conectadas} (fully connected neurons). La arquitectura de la red se describe de la siguiente manera:
+
+\begin{itemize}
+    \item \textbf{Capa de entrada}: Recibe imágenes de $28 \times 28$ píxeles, lo que se traduce en un vector de $784$ entradas.
+    \item \textbf{Primera capa oculta}: 128 neuronas con activación \textbf{ReLU}.
+    \item \textbf{Segunda capa oculta}: 64 neuronas con activación \textbf{ReLU}.
+    \item \textbf{Capa de salida}: 10 neuronas (una por cada dígito del 0 al 9).
+\end{itemize}
+
+Cada capa oculta usa la función de activación \textbf{ReLU (Rectified Linear Unit)}, definida como:
+\begin{equation}
+    \text{ReLU}(x) = \max(0, x)
+\end{equation}
+
+La capa de salida no tiene activación explícita, ya que la función de pérdida utilizada es \textbf{CrossEntropyLoss}, que incorpora la activación \textbf{softmax} implícitamente.
+
+\subsection{Grafo asociado a la Red Neuronal}
+
+Esta red se puede representar como un \textbf{grafo dirigido y ponderado} \( G = (V, E, W) \), donde:
+
+\[
+V = V_1 \cup V_2 \cup V_3 \cup V_4
+\]
+
+\begin{align*}
+V_1 &= \{ v_{1,1}, v_{1,2}, \dots, v_{1,784} \}, \quad \text{(capa de entrada)} \\
+V_2 &= \{ v_{2,1}, v_{2,2}, \dots, v_{2,128} \}, \quad \text{(primera capa oculta)} \\
+V_3 &= \{ v_{3,1}, v_{3,2}, \dots, v_{3,64} \}, \quad \text{(segunda capa oculta)} \\
+V_4 &= \{ v_{4,1}, v_{4,2}, \dots, v_{4,10} \}, \quad \text{(capa de salida)}
+\end{align*}
+
+El conjunto de aristas \( E \) es:
+
+\[
+E = E_1 \cup E_2 \cup E_3
+\]
+
+\begin{align*}
+E_1 &= \{ (v_{1,i}, v_{2,j}) \mid 1 \leq i \leq 784, 1 \leq j \leq 128 \}, \quad \text{(capa de entrada a primera oculta)} \\
+E_2 &= \{ (v_{2,i}, v_{3,j}) \mid 1 \leq i \leq 128, 1 \leq j \leq 64 \}, \quad \text{(primera capa oculta a segunda oculta)} \\
+E_3 &= \{ (v_{3,i}, v_{4,j}) \mid 1 \leq i \leq 64, 1 \leq j \leq 10 \}, \quad \text{(segunda capa oculta a salida)}
+\end{align*}
+
+La función de pesos \( W \) asigna valores a las conexiones entre neuronas:
+
+\[
+W(v_{k,i}, v_{k+1,j}) = w_{k,ij}
+\]
+
+donde \( w_{k,ij} \) representa el peso de la conexión entre la neurona \( i \) en la capa \( k \) y la neurona \( j \) en la capa \( k+1 \).
+
 \section{Energía}
 
 Sea $G = (V, E)$ un grafo con matriz de adyacencia $A(G)$. Decimos que el polinomio característico de $G$ es el polinomio caracteristico de su matriz de adyacencia $A(G)$ dado por $\text{det}(xI_n-A(G))$, donde $I_n$ es la matriz identidad de orden $n$. Denotamos al polinomio caracteristico de $G$ con $\phi(G, x)$. Los autovalores del grafo $G$ son los autovalores de su matriz de adyacencia $A(G)$. Dado que $A(G)$ es una matriz simetrica, sus autovalores son reales. Llamamos espectro de $G$ al conjunto de autovalores del grafo y lo denotamos por $\text{Spec}(G)$. 
@@ -49,7 +120,7 @@ Sea $G$ un grafo con $n$ vertices. Definimos la energia de $G$ como
 
 $$\mathcal{E} = \mathcal{E}(G) = \sum_{\lambda \in \text{Spec(G)}} |\lambda|$$
 
-El grado de un vértice es el número de vértices conectados a él y lo denotamos $\text{deg}(v)$. Dado un grafo $G$ con $V(G) = \lbrace v_1, ... , v_n \rbrace$ definimos $\Delta(G)$ como la matriz diagonal con entradas
+El grado de un vértice $v$ es el número de aristas conectadas a él y lo denotamos $\text{deg}(v)$. Dado un grafo $G$ con $V(G) = \lbrace v_1, ... , v_n \rbrace$ definimos la matriz de grados de $G$, $\Delta(G)$, como la matriz diagonal con entradas
 
 $$\delta_{ii} = \text{deg}(v_i)$$
 
@@ -57,25 +128,94 @@ La Matriz Laplaciana de $G$, denotada $L(G)$, está definida como
 
 $$L(G) = \Delta(G) - A(G)$$
 
-Sea $G$ un grafo con $|V(G)| = n$, $|E(G)| = m$ y $S = \text{Spec}(L(G) - \frac{2m}{n}I_n)$. La energía Laplaciana de $G$, denotada $\mathcal{E}_L$, está dada por
+Sea $G$ un grafo con $n$ vertices, $m$ aristas y $S = \text{Spec}(L(G) - \frac{2m}{n}I_n)$. La energía Laplaciana de $G$, denotada $\mathcal{E}_L$, está dada por
 
 $$\mathcal{E}_L = \sum_{\lambda \in S} |\lambda|$$
 
 Una \textbf{red neuronal} es un modelo computacional inspirado en el cerebro humano, utilizado en aprendizaje automático e inteligencia artificial para reconocer patrones y tomar decisiones. Consiste en capas de unidades interconectadas llamadas \textbf{neuronas}, que procesan datos de entrada y transmiten información a través de conexiones ponderadas.
 
-\section*{Relación con la Teoría de Grafos}
+\section{Metodología}
 
-Una red neuronal puede verse como un \textbf{grafo dirigido}, donde:
+Con el objetivo de determinar la existencia de una correlación entre la \textbf{energía del grafo asociado a una red neuronal} y la \textbf{función de pérdida} durante el entrenamiento de la red, empleamos herramientas estadísticas como regresión lineal, regresión polinómica y análisis de correlación.
+
+\subsection{Definición de Variables}
+
+Se consideran las siguientes variables:
+
 \begin{itemize}
-    \item \textbf{Nodos (vértices)} representan las neuronas.
-    \item \textbf{Aristas dirigidas} representan las conexiones ponderadas entre neuronas.
+    \item \( L \): Valor de la función de pérdida de la red neuronal después de cada época de entrenamiento.
+    \item \( E \): Energía de la red neuronal, calculada a partir de diferentes matrices asociadas (adyacencia, bipartita y laplaciana).
 \end{itemize}
 
-La estructura de una red neuronal se relaciona con la teoría de grafos en varios aspectos:
-\begin{enumerate}
-    \item \textbf{Redes Feedforward}: Forman un \textbf{grafo dirigido acíclico (DAG)} donde la información fluye en una sola dirección, desde la entrada hasta la salida, sin ciclos.
-    \item \textbf{Redes Neuronales Recurrentes (RNNs)}: Introducen ciclos, haciendo que el grafo sea \textbf{cíclico}, lo que permite la memoria y dependencias temporales en los datos.
-    \item \textbf{Redes Neuronales de Grafos (GNNs)}: Utilizan estructuras de \textbf{grafos} como entrada, aprendiendo patrones sobre los nodos y aristas, lo que es útil para redes sociales, estructuras moleculares, entre otros.
-\end{enumerate}
+Dado un conjunto de valores empíricos \(\{ (L_i, E_i) \}_{i=1}^{n} \), se procede con el análisis de correlación.
+
+\subsection{Análisis}
+
+El procedimiento de análisis comprende cuatro enfoques:
+
+\subsubsection{Visualización mediante Gráficos}
+
+Se grafica la relación entre \( L \) y \( E \) para observar posibles tendencias o patrones. Se genera un gráfico bidimensional de dispersión con:
+
+\[
+\text{Eje } x: L \quad \text{(función de pérdida)}, \quad
+\text{Eje } y: E \quad \text{(energía del grafo)}
+\]
+
+\subsubsection{Regresión Lineal}
+
+Se ajusta un modelo de regresión lineal de la forma:
+
+\[
+E = \alpha L + \beta + \varepsilon
+\]
+
+donde:
+
+\begin{itemize}
+    \item \( \alpha \) es la pendiente de la regresión.
+    \item \( \beta \) es la intersección con el eje \( y \).
+    \item \( \varepsilon \) representa el término de error.
+\end{itemize}
+
+El coeficiente de determinación \( R^2 \) se calcula como:
+
+\[
+R^2 = 1 - \frac{\sum (E_i - \hat{E}_i)^2}{\sum (E_i - \bar{E})^2}
+\]
+
+donde \( \hat{E}_i \) son los valores predichos y \( \bar{E} \) es el promedio de \( E \).
+
+\subsubsection{Regresión Polinómica}
+
+Para capturar relaciones no lineales, se ajusta un modelo polinómico de grado \( d \):
+
+\[
+E = a_d L^d + a_{d-1} L^{d-1} + \dots + a_1 L + a_0 + \varepsilon
+\]
+
+El ajuste se realiza usando mínimos cuadrados y se visualiza el polinomio ajustado.
+
+\subsubsection{Análisis de Correlación}
+
+Se calcula el coeficiente de correlación de Pearson:
+
+\[
+\rho = \frac{\sum (L_i - \bar{L}) (E_i - \bar{E})}{\sqrt{\sum (L_i - \bar{L})^2} \sqrt{\sum (E_i - \bar{E})^2}}
+\]
+
+donde:
+
+\begin{itemize}
+    \item \( \rho \) mide la relación lineal entre \( L \) y \( E \).
+    \item \( \rho \approx 1 \) indica correlación positiva fuerte.
+    \item \( \rho \approx -1 \) indica correlación negativa fuerte.
+    \item \( \rho \approx 0 \) indica ausencia de correlación lineal.
+\end{itemize}
+
+\section{Conclusión}
+
+En resumen, la red neuronal utilizada en el código es un Perceptrón Multicapa con neuronas completamente conectadas y activaciones ReLU. Además, el código explora la relación entre la pérdida del modelo y la energía de los grafos asociados a la red, proporcionando un análisis espectral que puede ayudar a comprender el comportamiento del entrenamiento.
+
 
 \end{document}

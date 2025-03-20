@@ -66,7 +66,6 @@ def calcular_energia(modelo):
         energia_total += np.sum(np.abs(eigenvalues))
     return energia_total
 
-
 # Ejemplo dummy para probar la función calcular_energia
 class DummyModel(nn.Module):
     def __init__(self):
