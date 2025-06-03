@@ -30,21 +30,52 @@ def normalize(data):
     data_array = np.array(data)
     return (data_array - np.min(data_array)) / (np.max(data_array) - np.min(data_array))
 
-# Función para graficar la energía vs la pérdida del grafo con gradiente
-def plot_loss_vs_energy(loss, energy, network_name, log_scale=False):
-    loss_array = normalize(loss)
-    energy_array = normalize(energy)
-    colors = plt.cm.Blues(np.linspace(0.3, 1, len(energy_array)))
-    plt.scatter(energy_array, loss_array, color=colors, label='Datos')
-    plt.plot(energy_array, loss_array, color='blue', alpha=0.5, label='Curva de tendencia')
-    plt.title(f'{network_name} - Gráfico de Energía vs Pérdida del grafo')
-    plt.xlabel('Energía del grafo (normalizada)')
-    plt.ylabel('Función de pérdida (normalizada)')
-    if log_scale:
-        plt.yscale('log')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+def plot_loss_vs_energy(loss_history, energy_history, title, ax=None, 
+                        marker="o", color="C0", show_regression=False):
+    """
+    Grafica Pérdida vs Energía en un eje dado (o crea uno nuevo si ax=None).
+    - loss_history: lista o arreglo de pérdidas (eje X).
+    - energy_history: lista o arreglo de energías (eje Y).
+    - title: título de la gráfica.
+    - ax: objeto Axes de matplotlib donde dibujar (opcional).
+    - marker, color: opciones de estilo para los puntos.
+    - show_regression: si es True, ajusta y dibuja una regresión lineal simple.
+    """
+    # Si no se proporciona un eje, crear una figura nueva
+    created_fig = False
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 4.5))
+        created_fig = True
+
+    # Convertir a numpy arrays
+    x = np.array(loss_history)
+    y = np.array(energy_history)
+
+    # Dibujar puntos
+    ax.scatter(x, y, marker=marker, color=color, label="Datos", alpha=0.8)
+
+    # (Opcional) Ajuste lineal simple y línea resultante
+    if show_regression:
+        # fit polinomial de grado 1
+        coef = np.polyfit(x, y, 1)
+        line_x = np.linspace(x.min(), x.max(), 100)
+        line_y = np.polyval(coef, line_x)
+        ax.plot(line_x, line_y, color=color, linestyle="--",
+                label=f"Regresión (y={coef[0]:.3f}·x+{coef[1]:.3f})")
+
+    # Etiquetas y título
+    ax.set_title(title, fontsize=14, pad=10)
+    ax.set_xlabel("Pérdida", fontsize=12)
+    ax.set_ylabel("Energía", fontsize=12)
+
+    # Grilla y leyenda
+    ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+    ax.legend(fontsize=10)
+
+    # Ajuste de márgenes
+    if created_fig:
+        plt.tight_layout()
+        plt.show()
 
 # Función para entrenar una regresión lineal para la energía vs pérdida
 def linear_regression(loss, energy, network_name):
@@ -115,6 +146,96 @@ def correlation_analysis(loss, energy):
     corr_coefficient, p_value = pearsonr(energy_array, loss_array)
     print(f"Coeficiente de correlación de Pearson entre Energía y Pérdida: {corr_coefficient:.4f}")
     print(f"Valor p (significancia estadística): {p_value:.4e}")
+
+def plot_energy_vs_loss_with_stats(
+    loss1, energy1,
+    loss2, energy2,
+    energy_label="Energía",
+    network1_name="SimpleNN",
+    network2_name="AdvancedNN"
+):
+    """
+    Grafica en una misma figura:
+      - Puntos de (loss1, energy1) (Red1) en color C0
+      - Puntos de (loss2, energy2) (Red2) en color C1
+      - Ajuste polinómico grado 3 separado en cada conjunto (normalizado)
+      - Calcula y muestra en la leyenda:
+          * coeficiente de correlación de Pearson (r)
+          * coeficiente de determinación (R²) del polinomio grado 3
+    Parámetros:
+      loss1, energy1   : listas o arrays (raw) de pérdida/energía para Red Simple
+      loss2, energy2   : listas o arrays (raw) de pérdida/energía para Red Advanced
+      energy_label     : texto para poner en el eje Y y en el título
+      network1_name    : etiqueta para la Red 1 en la leyenda
+      network2_name    : etiqueta para la Red 2 en la leyenda
+    """
+
+    # 1) Normalizar pérdidas y energías (Min-Max) para cada red
+    x1 = normalize(loss1)     # pérdida normalizada Red Simple
+    y1 = normalize(energy1)   # energía normalizada Red Simple
+
+    x2 = normalize(loss2)     # pérdida normalizada Red Advanced
+    y2 = normalize(energy2)   # energía normalizada Red Advanced
+
+    # 2) Calcular coeficiente de correlación Pearson (r) para cada red
+    r1, _ = pearsonr(x1, y1)
+    r2, _ = pearsonr(x2, y2)
+
+    # 3) Ajuste polinómico grado 3 para cada red
+    coefs1 = np.polyfit(x1, y1, deg=2)      # coefs [a3, a2, a1, a0]
+    poly1  = np.poly1d(coefs1)
+    y1_pred = poly1(x1)
+    ss_tot1 = np.sum((y1 - np.mean(y1))**2)
+    ss_res1 = np.sum((y1 - y1_pred)**2)
+    r2_1    = 1 - (ss_res1 / ss_tot1)
+
+    coefs2 = np.polyfit(x2, y2, deg=2)
+    poly2  = np.poly1d(coefs2)
+    y2_pred = poly2(x2)
+    ss_tot2 = np.sum((y2 - np.mean(y2))**2)
+    ss_res2 = np.sum((y2 - y2_pred)**2)
+    r2_2    = 1 - (ss_res2 / ss_tot2)
+
+    # 4) Crear la figura
+    plt.figure(figsize=(7, 5))
+
+    # 5) Dibujar puntos de cada red
+    plt.scatter(
+        x1, y1,
+        marker='o', color='C0', alpha=0.8,
+        label=f'{network1_name} (datos)'
+    )
+    plt.scatter(
+        x2, y2,
+        marker='s', color='C1', alpha=0.8,
+        label=f'{network2_name} (datos)'
+    )
+
+    # 6) Dibujar curva polinómica grado 3 para cada red
+    x_fit = np.linspace(0, 1, 200)  # rango de normalización [0,1]
+
+    y1_fit = poly1(x_fit)
+    plt.plot(
+        x_fit, y1_fit,
+        linestyle='--', color='C0', linewidth=2,
+        label=f'{network1_name} (poly3, R²={r2_1:.3f}, r={r1:.3f})'
+    )
+
+    y2_fit = poly2(x_fit)
+    plt.plot(
+        x_fit, y2_fit,
+        linestyle='--', color='C1', linewidth=2,
+        label=f'{network2_name} (poly3, R²={r2_2:.3f}, r={r2:.3f})'
+    )
+
+    # 7) Etiquetas, título, grilla y leyenda
+    plt.title(f"Pérdida vs {energy_label}", fontsize=14, pad=10)
+    plt.xlabel("Pérdida (normalizada)", fontsize=12)
+    plt.ylabel(f"{energy_label} (normalizada)", fontsize=12)
+    plt.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+    plt.legend(fontsize=10)
+    plt.tight_layout()
+    plt.show()
 
 
 # %% Auxiliar functions for Neural Network
@@ -320,7 +441,30 @@ print("Entrenando AdvancedNN...")
 loss_history2, energy_bip2, energy_lapl2 = entrenar_red(model2, optimizer2, scheduler2, criterion2, train_loader, epochs, device)
 
 
-#Análisis y Visualización: Pérdida vs Energías
+# %% Análisis y Visualización: Pérdida vs Energías
+# --- Gráfica 1: Energía Bipartita con r y R² en la leyenda ---
+plot_energy_vs_loss_with_stats(
+    loss1         = loss_history1,
+    energy1       = energy_bip1,
+    loss2         = loss_history2,
+    energy2       = energy_bip2,
+    energy_label  = "Energía Bipartita",
+    network1_name = "SimpleNN",
+    network2_name = "AdvancedNN"
+)
+
+# --- Gráfica 2: Energía Laplaciana con r y R² en la leyenda ---
+plot_energy_vs_loss_with_stats(
+    loss1         = loss_history1,
+    energy1       = energy_lapl1,
+    loss2         = loss_history2,
+    energy2       = energy_lapl2,
+    energy_label  = "Energía Laplaciana",
+    network1_name = "SimpleNN",
+    network2_name = "AdvancedNN"
+)
+
+# %%
 
 # %% Red Simple
 # Gráficos de comparación
